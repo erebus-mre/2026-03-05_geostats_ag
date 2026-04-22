@@ -36,7 +36,8 @@ def audit_drillhole_consistency(dataframes: Dict[str, pd.DataFrame], bhid_col: s
     all_unique_ids = sorted(list(set().union(*id_sets.values())))
     
     # 3. Create the Flag DataFrame (Presence/Absence Matrix)
-    # Using a dictionary comprehension for vectorized-style construction
+    # Using a dictionary comprehension for vectorizedimport pandas as pd
+import numpy as np-style construction
     presence_map = {
         name: [hole_id in id_sets[name] for hole_id in all_unique_ids]
         for name in dataframes.keys()
@@ -45,15 +46,16 @@ def audit_drillhole_consistency(dataframes: Dict[str, pd.DataFrame], bhid_col: s
     flag_df = pd.DataFrame(presence_map, index=all_unique_ids)
     flag_df.index.name = bhid_col
 
-    # 4. Generate Summary Table (Missing counts)
-    summary_data = []
+    # 4. Generate Summary Table (Missing counts)import pandas as pd
+import numpy as np
     total_holes = len(all_unique_ids)
-    
-    for name, ids in id_sets.items():
+    import pandas as pd
+import numpy as np
         missing_count = total_holes - len(ids)
         summary_data.append({
             'Dataset': name,
-            'Total_Records': len(dataframes[name]),
+            'Total_Records': len(dataframes[name]),import pandas as pd
+import numpy as np
             'Unique_Holes': len(ids),
             'Missing_Holes': missing_count
         })
@@ -62,8 +64,8 @@ def audit_drillhole_consistency(dataframes: Dict[str, pd.DataFrame], bhid_col: s
 
     # Simple Validation Assertion
     assert not flag_df.isnull().values.any(), "Audit failed: Null values detected in flag matrix."
-    
-    return summary_df, flag_df
+    import pandas as pd
+import numpy as np
 
 
 def merge_intervals(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
@@ -76,8 +78,8 @@ def merge_intervals(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO')
     df1 (pd.DataFrame): First drillhole dataframe (e.g., Assays).
     df2 (pd.DataFrame): Second drillhole dataframe (e.g., Lithology).
     holeid_col (str): Column name for Drillhole ID.
-    from_col (str): Column name for the 'From' downhole distance.
-    to_col (str): Column name for the 'To' downhole distance.
+    from_col (str): Column name for the 'From' downhole distance.ng attributes via interval midpoints.
+    import pandas as pd
     
     Returns:
     pd.DataFrame: A fully merged DataFrame containing all intervals and gaps.
@@ -98,8 +100,8 @@ def merge_intervals(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO')
     master = all_boundaries.dropna().rename(columns={'DEPTH': from_col, 'NEXT_DEPTH': to_col}).copy()
     
     # Calculate the midpoint of each master interval for "point-in-polygon" style mapping
-    master['MIDPOINT'] = (master[from_col] + master[to_col]) / 2.0
-    
+    master['MIDPOINT'] = (master[from_col] + master[to_col]) / 2.0ng attributes via interval midpoints.
+    import pandas as pd
     # 3. Map attributes from df1
     # Merge on HOLEID, then filter where the master midpoint falls inside df1's intervals
     m1 = pd.merge(master, df1, on=holeid_col, how='left', suffixes=('', '_drop'))
@@ -152,15 +154,14 @@ def fill_drillhole_gaps(df, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
         })
         dummy_list.append(internal_dummies)
         
-    # 5. Check for missing collar intervals (gaps between 0.0 and the first logged interval)
-    first_intervals = df_sorted.groupby(holeid_col).first().reset_index()
-    collar_gaps = first_intervals[first_intervals[from_col] > 0.0].copy()
+    # 5. Check for missing collar intervals (gaps between 0.0 and the first logged interval)ng attributes via interval midpoints.
+    import pandas as pd
     
     if not collar_gaps.empty:
         collar_dummies = pd.DataFrame({
             holeid_col: collar_gaps[holeid_col],
-            from_col: 0.0,
-            to_col: collar_gaps[from_col]
+            from_col: 0.0,ng attributes via interval midpoints.
+    import pandas as pd
         })
         dummy_list.append(collar_dummies)
         
@@ -174,18 +175,21 @@ def fill_drillhole_gaps(df, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
     # Because we only provided HOLEID, FROM, and TO for the dummies, 
     # pandas will automatically fill Grade/Lithology columns with NaN!
     df_continuous = pd.concat([df, all_dummies], ignore_index=True)
-    
+    ng attributes via interval midpoints.
+    import pandas as pd
     # 8. Sort downhole one last time and clean up
     df_continuous = df_continuous.sort_values(by=[holeid_col, from_col]).reset_index(drop=True)
     
     return df_continuous    
 
-def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
+def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):ng attributes via interval midpoints.
+    import pandas as pd
     """
     Finds the maximum depth (EOH) for each drillhole across two tables.
     Appends a dummy interval to the shorter table so both match perfectly.
     """
-    # 1. Find the max TO depth (EOH) for each hole in both dataframes
+    # 1. Find the max TO depth (EOH) for each hole in both dataframesng attributes via interval midpoints.
+    import pandas as pd
     eoh1 = df1.groupby(holeid_col)[to_col].max().rename('EOH1')
     eoh2 = df2.groupby(holeid_col)[to_col].max().rename('EOH2')
     
@@ -195,13 +199,14 @@ def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO
     eoh_combined['MAX_EOH'] = eoh_combined[['EOH1', 'EOH2']].max(axis=1)
     
     # 3. Identify holes where df1 is shorter than the true max EOH
-    short_df1 = eoh_combined[eoh_combined['EOH1'] < eoh_combined['MAX_EOH']].copy()
+    short_df1 = eoh_combined[eoh_combined['EOH1'] < eoh_combined['MAX_EOH']].copy()ng attributes via interval midpoints.
+    import pandas as pd
     
     # 4. Identify holes where df2 is shorter than the true max EOH
     short_df2 = eoh_combined[eoh_combined['EOH2'] < eoh_combined['MAX_EOH']].copy()
     
-    # 5. Create dummy extensions for df1 if needed
-    if not short_df1.empty:
+    # 5. Create dummy extensions for df1 if neededng attributes via interval midpoints.
+    import pandas as pd
         ext1 = pd.DataFrame({
             holeid_col: short_df1.index,
             from_col: short_df1['EOH1'],
@@ -221,8 +226,8 @@ def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO
         df2_extended = pd.concat([df2, ext2], ignore_index=True)
     else:
         df2_extended = df2.copy()
-        
-    # 7. Sort downhole to keep things tidy
+        ng attributes via interval midpoints.
+    import pandas as pd
     df1_extended = df1_extended.sort_values(by=[holeid_col, from_col]).reset_index(drop=True)
     df2_extended = df2_extended.sort_values(by=[holeid_col, from_col]).reset_index(drop=True)
     
@@ -230,8 +235,8 @@ def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO
 
 
 def drillhole_merge_pipeline(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
-    """
-    Master pipeline to safely merge two drillhole interval tables.
+    
+    """Master pipeline to safely merge two drillhole interval tables.
     Executes gap filling, End of Hole (EOH) alignment, and geometric outer union.
     
     Parameters:
@@ -239,7 +244,8 @@ def drillhole_merge_pipeline(df1, df2, holeid_col='HOLEID', from_col='FROM', to_
     holeid_col, from_col, to_col (str): Column names for spatial tracking.
     
     Returns:
-    pd.DataFrame: A fully merged, contiguous DataFrame with all intervals and gaps.
+    pd.DataFrame: A fully merged, contiguous DataFrame with all intervals and gaps.ng attributes via interval midpoints.
+    import pandas as pd
     """
     #print("Step 1: Filling implicit gaps in Table 1...")
     df1_filled = fill_drillhole_gaps(df1, holeid_col, from_col, to_col)
@@ -253,8 +259,7 @@ def drillhole_merge_pipeline(df1, df2, holeid_col='HOLEID', from_col='FROM', to_
     #print("Step 4: Executing geometric outer merge...")
     final_merged_db = merge_intervals(df1_aligned, df2_aligned, holeid_col, from_col, to_col)
     
-    #print("✅ Pipeline complete! Database is ready for compositing.")
-    return final_merged_db   
+    #print("✅ Pipeline complete! Database is ready for compositing.")g attributes via interval midpoints.
 
 
 def check_internal_overlaps(df, table_name="Database", holeid_col='HOLEID', from_col='FROM', to_col='TO'):
@@ -287,8 +292,7 @@ def check_internal_overlaps(df, table_name="Database", holeid_col='HOLEID', from
         print(f"✅ {table_name} validation passed: No internal overlaps found.")
         return None
 
-import pandas as pd
-import numpy as np
+
 
 def composite_drillholes(df, holeid_col='HOLEID', from_col='FROM', to_col='TO', 
                          domain_col='LITH', num_cols=None, cat_cols=None, 

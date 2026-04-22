@@ -170,13 +170,13 @@ def visualize_geostat_point_cloud(
         cmap=cmap, 
         point_size=point_size, 
         render_points_as_spheres=True,
-        stipple_alpha=0.8,
+        opacity=0.8,
         scalar_bar_args={'title': f"{data_col} Intensity"}
     )
 
     # 5. Add spatial context
     plotter.add_axes()
-    plotter.add_grid()
+    plotter.show_grid()
     
     print(f"Rendering {len(data_clean)} points. Close window to continue...")
     plotter.show()
