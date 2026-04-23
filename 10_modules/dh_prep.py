@@ -1,8 +1,9 @@
-import pandas as pd
 import numpy as np
-
+import pandas as pd
+from typing import List, Dict, Tuple, Optional
 import pyvista as pv
-from typing import List, Dict, Tuple
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch 
 
 def audit_drillhole_consistency(dataframes: Dict[str, pd.DataFrame], bhid_col: str = 'BHID') -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -36,8 +37,7 @@ def audit_drillhole_consistency(dataframes: Dict[str, pd.DataFrame], bhid_col: s
     all_unique_ids = sorted(list(set().union(*id_sets.values())))
     
     # 3. Create the Flag DataFrame (Presence/Absence Matrix)
-    # Using a dictionary comprehension for vectorizedimport pandas as pd
-import numpy as np-style construction
+    # Using a dictionary comprehension for vectorized-style construction
     presence_map = {
         name: [hole_id in id_sets[name] for hole_id in all_unique_ids]
         for name in dataframes.keys()
@@ -46,16 +46,15 @@ import numpy as np-style construction
     flag_df = pd.DataFrame(presence_map, index=all_unique_ids)
     flag_df.index.name = bhid_col
 
-    # 4. Generate Summary Table (Missing counts)import pandas as pd
-import numpy as np
+    # 4. Generate Summary Table (Missing counts)
+    summary_data = []
     total_holes = len(all_unique_ids)
-    import pandas as pd
-import numpy as np
+    
+    for name, ids in id_sets.items():
         missing_count = total_holes - len(ids)
         summary_data.append({
             'Dataset': name,
-            'Total_Records': len(dataframes[name]),import pandas as pd
-import numpy as np
+            'Total_Records': len(dataframes[name]),
             'Unique_Holes': len(ids),
             'Missing_Holes': missing_count
         })
@@ -64,22 +63,23 @@ import numpy as np
 
     # Simple Validation Assertion
     assert not flag_df.isnull().values.any(), "Audit failed: Null values detected in flag matrix."
-    import pandas as pd
-import numpy as np
+    
+    return summary_df, flag_df
+    
+
 
 
 def merge_intervals(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
     """
     Performs a true topological outer join of two drillhole interval tables.
     Retains all gaps, unlogged sections, and unsampled intervals by creating 
-    a master set of boundaries and mapping attributes via interval midpoints.
+    a master set of boundaries and mappi
     
-    Parameters:
-    df1 (pd.DataFrame): First drillhole dataframe (e.g., Assays).
+    Parameters:le dataframe (e.g., Assays).
     df2 (pd.DataFrame): Second drillhole dataframe (e.g., Lithology).
     holeid_col (str): Column name for Drillhole ID.
-    from_col (str): Column name for the 'From' downhole distance.ng attributes via interval midpoints.
-    import pandas as pd
+    from_col (str): Column name for the 'From' downhole distance.
+    
     
     Returns:
     pd.DataFrame: A fully merged DataFrame containing all intervals and gaps.
@@ -100,8 +100,8 @@ def merge_intervals(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO')
     master = all_boundaries.dropna().rename(columns={'DEPTH': from_col, 'NEXT_DEPTH': to_col}).copy()
     
     # Calculate the midpoint of each master interval for "point-in-polygon" style mapping
-    master['MIDPOINT'] = (master[from_col] + master[to_col]) / 2.0ng attributes via interval midpoints.
-    import pandas as pd
+    master['MIDPOINT'] = (master[from_col] + master[to_col]) / 2.0
+    
     # 3. Map attributes from df1
     # Merge on HOLEID, then filter where the master midpoint falls inside df1's intervals
     m1 = pd.merge(master, df1, on=holeid_col, how='left', suffixes=('', '_drop'))
@@ -154,14 +154,16 @@ def fill_drillhole_gaps(df, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
         })
         dummy_list.append(internal_dummies)
         
-    # 5. Check for missing collar intervals (gaps between 0.0 and the first logged interval)ng attributes via interval midpoints.
-    import pandas as pd
+    # 5. Check for missing collar intervals (gaps between 0.0 and the first logged interval)
     
+    first_intervals = df_sorted.groupby(holeid_col).first().reset_index()
+    collar_gaps = first_intervals[first_intervals[from_col] > 0.0].copy()
+
     if not collar_gaps.empty:
         collar_dummies = pd.DataFrame({
             holeid_col: collar_gaps[holeid_col],
-            from_col: 0.0,ng attributes via interval midpoints.
-    import pandas as pd
+            from_col: 0.0,
+    
         })
         dummy_list.append(collar_dummies)
         
@@ -175,21 +177,19 @@ def fill_drillhole_gaps(df, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
     # Because we only provided HOLEID, FROM, and TO for the dummies, 
     # pandas will automatically fill Grade/Lithology columns with NaN!
     df_continuous = pd.concat([df, all_dummies], ignore_index=True)
-    ng attributes via interval midpoints.
-    import pandas as pd
+    
+    
     # 8. Sort downhole one last time and clean up
     df_continuous = df_continuous.sort_values(by=[holeid_col, from_col]).reset_index(drop=True)
     
     return df_continuous    
 
-def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):ng attributes via interval midpoints.
-    import pandas as pd
+def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
     """
     Finds the maximum depth (EOH) for each drillhole across two tables.
     Appends a dummy interval to the shorter table so both match perfectly.
     """
-    # 1. Find the max TO depth (EOH) for each hole in both dataframesng attributes via interval midpoints.
-    import pandas as pd
+    # 1. Find the max TO depth (EOH) for each hole in both dataframes
     eoh1 = df1.groupby(holeid_col)[to_col].max().rename('EOH1')
     eoh2 = df2.groupby(holeid_col)[to_col].max().rename('EOH2')
     
@@ -199,14 +199,13 @@ def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO
     eoh_combined['MAX_EOH'] = eoh_combined[['EOH1', 'EOH2']].max(axis=1)
     
     # 3. Identify holes where df1 is shorter than the true max EOH
-    short_df1 = eoh_combined[eoh_combined['EOH1'] < eoh_combined['MAX_EOH']].copy()ng attributes via interval midpoints.
-    import pandas as pd
+    short_df1 = eoh_combined[eoh_combined['EOH1'] < eoh_combined['MAX_EOH']].copy()
     
     # 4. Identify holes where df2 is shorter than the true max EOH
     short_df2 = eoh_combined[eoh_combined['EOH2'] < eoh_combined['MAX_EOH']].copy()
     
-    # 5. Create dummy extensions for df1 if neededng attributes via interval midpoints.
-    import pandas as pd
+    # 5. Create dummy extensions for df1 if needed
+    if not short_df1.empty:
         ext1 = pd.DataFrame({
             holeid_col: short_df1.index,
             from_col: short_df1['EOH1'],
@@ -226,40 +225,12 @@ def align_end_of_hole(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO
         df2_extended = pd.concat([df2, ext2], ignore_index=True)
     else:
         df2_extended = df2.copy()
-        ng attributes via interval midpoints.
-    import pandas as pd
+        
+    # 7. Sort downhole to keep things tidy
     df1_extended = df1_extended.sort_values(by=[holeid_col, from_col]).reset_index(drop=True)
     df2_extended = df2_extended.sort_values(by=[holeid_col, from_col]).reset_index(drop=True)
     
-    return df1_extended, df2_extended  
-
-
-def drillhole_merge_pipeline(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
-    
-    """Master pipeline to safely merge two drillhole interval tables.
-    Executes gap filling, End of Hole (EOH) alignment, and geometric outer union.
-    
-    Parameters:
-    df1, df2 (pd.DataFrame): The raw drillhole tables (e.g., Assays, Lithology).
-    holeid_col, from_col, to_col (str): Column names for spatial tracking.
-    
-    Returns:
-    pd.DataFrame: A fully merged, contiguous DataFrame with all intervals and gaps.ng attributes via interval midpoints.
-    import pandas as pd
-    """
-    #print("Step 1: Filling implicit gaps in Table 1...")
-    df1_filled = fill_drillhole_gaps(df1, holeid_col, from_col, to_col)
-    
-    #print("Step 2: Filling implicit gaps in Table 2...")
-    df2_filled = fill_drillhole_gaps(df2, holeid_col, from_col, to_col)
-    
-    #print("Step 3: Aligning End of Hole (EOH) depths across both tables...")
-    df1_aligned, df2_aligned = align_end_of_hole(df1_filled, df2_filled, holeid_col, from_col, to_col)
-    
-    #print("Step 4: Executing geometric outer merge...")
-    final_merged_db = merge_intervals(df1_aligned, df2_aligned, holeid_col, from_col, to_col)
-    
-    #print("✅ Pipeline complete! Database is ready for compositing.")g attributes via interval midpoints.
+    return df1_extended, df2_extended
 
 
 def check_internal_overlaps(df, table_name="Database", holeid_col='HOLEID', from_col='FROM', to_col='TO'):
@@ -429,8 +400,75 @@ if __name__ == "__main__":
     print("\n--- 2m COMPOSITES ---")
     print(composites.to_string())
 
-import pandas as pd
-import numpy as np
+
+
+
+
+
+def visualize_composites_3d(df_comps, x_col='MID_X', y_col='MID_Y', z_col='MID_Z', grade_col='Au_ppm'):
+    """
+    Takes a dataframe of desurveyed composites and plots them as 3D spheres 
+    in PyVista, colored by their assay grade.
+    """
+    # 1. Extract the X, Y, Z coordinates into a 2D numpy array (N x 3)
+    # PyVista requires points to be in this specific mathematical format
+    points = df_comps[[x_col, y_col, z_col]].values
+    
+    # 2. Initialize a PyVista PolyData object (a point cloud)
+    point_cloud = pv.PolyData(points)
+    
+    # 3. Attach the grade array to the point cloud's data
+    # This tells PyVista what values to use for the color scale
+    point_cloud[grade_col] = df_comps[grade_col].values
+    
+    # 4. Set up the 3D Plotter environment
+    plotter = pv.Plotter()
+    
+    # Add a bounding box with coordinates to help you orient yourself
+    plotter.show_bounds(grid='front', location='outer', all_edges=True)
+    plotter.show_axes()
+    
+    # 5. Add the points to the scene
+    plotter.add_points(
+        point_cloud, 
+        render_points_as_spheres=True,  # Makes them look like 3D balls instead of flat pixels
+        point_size=15.0,                # Adjust this depending on your zoom level
+        scalars=grade_col,              # The column we attached in step 3
+        cmap="turbo",                   # 'turbo' or 'jet' are classic mining colormaps
+        show_scalar_bar=True,
+        scalar_bar_args={'title': f'{grade_col} (g/t)'}
+    )
+    
+    # 6. Launch the interactive render window
+    print("Launching PyVista 3D Viewer. Close the window to continue your script.")
+    plotter.show()
+
+def drillhole_merge_pipeline(df1, df2, holeid_col='HOLEID', from_col='FROM', to_col='TO'):
+    """
+    Master pipeline to safely merge two drillhole interval tables.
+    Executes gap filling, End of Hole (EOH) alignment, and geometric outer union.
+    
+    Parameters:
+    df1, df2 (pd.DataFrame): The raw drillhole tables (e.g., Assays, Lithology).
+    holeid_col, from_col, to_col (str): Column names for spatial tracking.
+    
+    Returns:
+    pd.DataFrame: A fully merged, contiguous DataFrame with all intervals and gaps.
+    """
+    print("Step 1: Filling implicit gaps in Table 1...")
+    df1_filled = fill_drillhole_gaps(df1, holeid_col, from_col, to_col)
+    
+    print("Step 2: Filling implicit gaps in Table 2...")
+    df2_filled = fill_drillhole_gaps(df2, holeid_col, from_col, to_col)
+    
+    print("Step 3: Aligning End of Hole (EOH) depths across both tables...")
+    df1_aligned, df2_aligned = align_end_of_hole(df1_filled, df2_filled, holeid_col, from_col, to_col)
+    
+    print("Step 4: Executing geometric outer merge...")
+    final_merged_db = merge_intervals(df1_aligned, df2_aligned, holeid_col, from_col, to_col)
+    
+    print("✅ Pipeline complete! Database is ready for compositing.")
+    return final_merged_db
 
 def desurvey_composites(df_comps, df_collar, df_survey, holeid_col='HOLEID'):
     """
@@ -500,105 +538,96 @@ def desurvey_composites(df_comps, df_collar, df_survey, holeid_col='HOLEID'):
     
     return comps
 
-# ==========================================
-# Example Execution
-# ==========================================
-if __name__ == "__main__":
-    # 1. Mock Collar File (X, Y, Z)
-    collars = pd.DataFrame({
-        'HOLEID': ['DH001'],
-        'X': [50000.0],
-        'Y': [60000.0],
-        'Z': [300.0]
-    })
-
-    # 2. Mock Survey File (Notice the hole starts plunging south-east)
-    surveys = pd.DataFrame({
-        'HOLEID': ['DH001', 'DH001', 'DH001'],
-        'DEPTH': [0.0, 50.0, 100.0],
-        'DIP': [-60.0, -58.0, -55.0],  # Negative is down
-        'AZIMUTH': [135.0, 138.0, 140.0]
-    })
-
-    # 3. Mock Composites (Output from our previous subroutine)
-    composites = pd.DataFrame({
-        'HOLEID': ['DH001', 'DH001'],
-        'FROM': [10.0, 12.0],
-        'TO': [12.0, 14.0],
-        'Au_ppm': [1.5, 4.2],
-        'LITH': ['Oxide', 'Oxide']
-    })
-
-    # Run the desurvey!
-    desurveyed_comps = desurvey_composites(composites, collars, surveys)
-    
-    # To keep the printout clean, let's just show the MID coordinates
-    print("--- COMPOSITE MIDPOINT COORDINATES ---")
-    cols_to_print = ['HOLEID', 'FROM', 'TO', 'MID_X', 'MID_Y', 'MID_Z', 'Au_ppm']
-    print(desurveyed_comps[cols_to_print].to_string())
-
-
-
-
-def visualize_composites_3d(df_comps, x_col='MID_X', y_col='MID_Y', z_col='MID_Z', grade_col='Au_ppm'):
+def plot_drill_hole_advanced(
+    df: pd.DataFrame,
+    from_col: str,
+    to_col: str,
+    rocktype_col: str,
+    grade_cols: List[str],
+    log_vars: Optional[List[str]] = None,
+    colors: Optional[Dict[str, str]] = None,
+) -> plt.Figure:
     """
-    Takes a dataframe of desurveyed composites and plots them as 3D spheres 
-    in PyVista, colored by their assay grade.
+    Plots drill hole intervals with selective log scaling for specific variables.
+
+    Args:
+        df: The composite dataframe.
+        from_col: Column name for interval start.
+        to_col: Column name for interval end.
+        rocktype_col: Column name for lithology labels.
+        grade_cols: List of all numeric columns to plot.
+        log_vars: Subset of grade_cols to be plotted on a log10 scale.
+        colors: Mapping of rock types to hex/RGBA colors.
+
+    Returns:
+        plt.Figure: Matplotlib figure with synchronized axes.
+
+    Raises:
+        ValueError: If interval geometry is invalid or columns are missing.
     """
-    # 1. Extract the X, Y, Z coordinates into a 2D numpy array (N x 3)
-    # PyVista requires points to be in this specific mathematical format
-    points = df_comps[[x_col, y_col, z_col]].values
+    # 1. Validation
+    log_vars = log_vars or []
+    required = [from_col, to_col, rocktype_col] + grade_cols
+    if not all(c in df.columns for c in required):
+        raise ValueError(f"Missing columns. Required: {required}")
     
-    # 2. Initialize a PyVista PolyData object (a point cloud)
-    point_cloud = pv.PolyData(points)
-    
-    # 3. Attach the grade array to the point cloud's data
-    # This tells PyVista what values to use for the color scale
-    point_cloud[grade_col] = df_comps[grade_col].values
-    
-    # 4. Set up the 3D Plotter environment
-    plotter = pv.Plotter()
-    
-    # Add a bounding box with coordinates to help you orient yourself
-    plotter.show_bounds(grid='front', location='outer', all_edges=True)
-    plotter.show_axes()
-    
-    # 5. Add the points to the scene
-    plotter.add_points(
-        point_cloud, 
-        render_points_as_spheres=True,  # Makes them look like 3D balls instead of flat pixels
-        point_size=15.0,                # Adjust this depending on your zoom level
-        scalars=grade_col,              # The column we attached in step 3
-        cmap="turbo",                   # 'turbo' or 'jet' are classic mining colormaps
-        show_scalar_bar=True,
-        scalar_bar_args={'title': f'{grade_col} (g/t)'}
-    )
-    
-    # 6. Launch the interactive render window
-    print("Launching PyVista 3D Viewer. Close the window to continue your script.")
-    plotter.show()
+    if (df[to_col] <= df[from_col]).any():
+        raise ValueError("Invalid intervals detected: 'To' must be > 'From'.")
 
-# ==========================================
-# Example Execution
-# ==========================================
-if __name__ == "__main__":
-    # Mocking up a few drillholes curving down into an orebody
-    np.random.seed(42)
-    
-    # Generate a spiral/curve of points to simulate multiple holes
-    z_coords = np.linspace(300, 0, 100)
-    x_coords = 50000 + np.sin(z_coords / 50) * 100 + np.random.normal(0, 5, 100)
-    y_coords = 60000 + np.cos(z_coords / 50) * 100 + np.random.normal(0, 5, 100)
-    
-    # Generate some mock grades (lognormal distribution is great for Au)
-    grades = np.random.lognormal(mean=0.5, sigma=0.8, size=100)
-    
-    mock_desurveyed_df = pd.DataFrame({
-        'MID_X': x_coords,
-        'MID_Y': y_coords,
-        'MID_Z': z_coords,
-        'Au_ppm': grades
-    })
+    # 2. Pre-calculation
+    df = df.sort_values(from_col).copy()
+    df['_mid'] = (df[from_col] + df[to_col]) / 2.0
+    df['_thick'] = df[to_col] - df[from_col]
 
-    # Run the visualizer!
-    visualize_composites_3d(mock_desurveyed_df)        
+    # 3. Setup Subplots
+    num_grade_plots = len(grade_cols)
+    fig, axes = plt.subplots(1, 1 + num_grade_plots, figsize=(4 * (1 + num_grade_plots), 10), 
+                             sharey=True, gridspec_kw={'wspace': 0.15})
+    
+    # Standard mining convention: invert Y to show depth increasing downwards
+    axes[0].set_ylim(df[to_col].max(), df[from_col].min())
+
+    # 4. Lithology Plot (Categorical)
+    ax_litho = axes[0]
+    unique_rocks = df[rocktype_col].unique()
+    
+    if not colors:
+        cmap = plt.get_cmap('Set2')
+        colors = {r: cmap(i / len(unique_rocks)) for i, r in enumerate(unique_rocks)}
+
+    for rock in unique_rocks:
+        mask = df[rocktype_col] == rock
+        ax_litho.barh(y=df.loc[mask, from_col], 
+                      width=1, 
+                      height=df.loc[mask, '_thick'], 
+                      color=[colors[rock]] * mask.sum(),
+                      align='edge', edgecolor='black', linewidth=0.2)
+
+    ax_litho.set_title("Lithology", fontweight='bold')
+    ax_litho.set_xticks([])
+    ax_litho.set_ylabel("Depth (m)", fontsize=12)
+    
+    legend_elements = [Patch(facecolor=colors[r], label=r) for r in unique_rocks]
+    ax_litho.legend(handles=legend_elements, loc='upper center', 
+                    bbox_to_anchor=(0.5, -0.05), ncol=2, frameon=False)
+
+    # 5. Grade Plots (Numeric with Selective Log Scale)
+    for i, col in enumerate(grade_cols):
+        ax = axes[i + 1]
+        x_data = df[col].values
+        y_data = df['_mid'].values
+        
+        is_log = col in log_vars
+        if is_log:
+            # Geostatistical handling of zeros/negatives for log plots
+            if (x_data <= 0).any():
+                x_data = np.where(x_data > 0, x_data, 1e-5)
+            ax.set_xscale('log')
+        
+        ax.plot(x_data, y_data, color='darkblue', marker='o', ms=3, lw=1, alpha=0.7)
+        ax.set_title(f"{col}{' (Log)' if is_log else ''}", fontweight='bold')
+        ax.grid(True, which="both", ls="--", alpha=0.4)
+        ax.set_xlabel("Units")
+
+    plt.tight_layout()
+    return fig
